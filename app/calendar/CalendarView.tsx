@@ -339,9 +339,36 @@ export default function CalendarView() {
                 )}
               </>
             ) : (
-              <p style={{ marginTop: 10, fontSize: 14, color: "#666" }}>
-                이 날은 아직 기록이 없어요.
-              </p>
+              <>
+                <p
+                  style={{
+                    marginTop: 10,
+                    fontSize: 14,
+                    color: "#666",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  이 날은 아직 기록이 없어요.
+                </p>
+                <Link
+                  href={`/?date=${selectedDate}`}
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    marginTop: 14,
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    background: "#1a1a1a",
+                    color: "#fff",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 10px 24px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  이 날 감정 기록하기
+                </Link>
+              </>
             )}
           </section>
         )}

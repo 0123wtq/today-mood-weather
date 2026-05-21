@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { MOODS, MOOD_MAP, type Mood, type MoodKey } from "./lib/moods";
 import {
   formatKoreanDate,
+  formatKoreanDateShort,
+  isValidDateKey,
   loadEntries,
   saveEntry,
   todayKey,
@@ -15,7 +18,14 @@ type Phase = "intro" | "record";
 type Status = "idle" | "saved" | "shared" | "copied" | "share-failed";
 
 export default function MoodDiary() {
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date");
   const today = useMemo(() => todayKey(), []);
+  const targetDate = useMemo(
+    () => (isValidDateKey(dateParam) ? dateParam : today),
+    [dateParam, today],
+  );
+  const isToday = targetDate === today;
   const [phase, setPhase] = useState<Phase>("intro");
   const [selected, setSelected] = useState<MoodKey | null>(null);
   const [note, setNote] = useState("");
@@ -26,9 +36,13 @@ export default function MoodDiary() {
   useEffect(() => {
     setHydrated(true);
     const all = loadEntries();
-    const entry = all[today] ?? null;
+    const entry = all[targetDate] ?? null;
     setExistingEntry(entry);
-  }, [today]);
+    setSelected(entry?.mood ?? null);
+    setNote(entry?.note ?? "");
+    setStatus("idle");
+    setPhase("intro");
+  }, [targetDate]);
 
   const selectedMood = selected ? MOOD_MAP[selected] : null;
   const existingMood = existingEntry ? MOOD_MAP[existingEntry.mood] : null;
@@ -59,7 +73,7 @@ export default function MoodDiary() {
   function handleSave() {
     if (!selected) return;
     const entry: Entry = {
-      date: today,
+      date: targetDate,
       mood: selected,
       note: note.trim().slice(0, 140),
       createdAt: Date.now(),
@@ -72,10 +86,11 @@ export default function MoodDiary() {
   async function handleShare() {
     if (!selected) return;
     const mood = MOOD_MAP[selected];
-    const text = `${mood.emoji} 오늘의 감정은 "${mood.label}"\n${
+    const subject = isToday ? "오늘의 감정" : "이 날의 감정";
+    const text = `${mood.emoji} ${subject}은 "${mood.label}"\n${
       note.trim() ? `"${note.trim()}"\n` : ""
-    }— ${formatKoreanDate(today)}`;
-    const shareData = { title: "오늘의 감정 날씨", text };
+    }— ${formatKoreanDate(targetDate)}`;
+    const shareData = { title: "감정 날씨", text };
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -136,12 +151,15 @@ export default function MoodDiary() {
             MOOD WEATHER
           </p>
           <h1 style={{ fontSize: 24, marginTop: 4, fontWeight: 700 }}>
-            {phase === "intro"
-              ? "오늘 마음은 어떤 날씨인가요?"
-              : "감정을 골라주세요"}
+            {phase === "record"
+              ? "감정을 골라주세요"
+              : isToday
+                ? "오늘 내 마음의 날씨는 어떤가요?"
+                : `${formatKoreanDateShort(targetDate)}의 마음날씨를 기록해볼까요?`}
           </h1>
           <p style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>
-            {formatKoreanDate(today)}
+            {formatKoreanDate(targetDate)}
+            {!isToday && " · 지난 날짜를 기록 중"}
           </p>
         </header>
 
@@ -150,6 +168,7 @@ export default function MoodDiary() {
             hydrated={hydrated}
             existingEntry={existingEntry}
             existingMood={existingMood}
+            isToday={isToday}
             onStart={startRecord}
           />
         ) : (
@@ -167,7 +186,7 @@ export default function MoodDiary() {
           <ResultCard
             mood={selectedMood}
             note={note}
-            dateLabel={formatKoreanDate(today)}
+            dateLabel={formatKoreanDate(targetDate)}
           />
         )}
 
@@ -265,14 +284,21 @@ function IntroPanel({
   hydrated,
   existingEntry,
   existingMood,
+  isToday,
   onStart,
 }: {
   hydrated: boolean;
   existingEntry: Entry | null;
   existingMood: Mood | null;
+  isToday: boolean;
   onStart: () => void;
 }) {
   const hasEntry = hydrated && existingEntry && existingMood;
+  const startLabel = hasEntry
+    ? "다시 기록하기"
+    : isToday
+      ? "오늘 감정 기록하기"
+      : "이 날 감정 기록하기";
 
   return (
     <section
@@ -336,23 +362,26 @@ function IntroPanel({
             )}
           </div>
           <p style={{ fontSize: 13, color: "#666", textAlign: "center" }}>
-            오늘은 이미 기록했어요. 마음이 바뀌었다면 다시 기록할 수 있어요.
+            {isToday
+              ? "오늘은 이미 기록했어요. 마음이 바뀌었다면 다시 기록할 수 있어요."
+              : "이 날은 이미 기록했어요. 다시 기록하면 덮어써져요."}
           </p>
         </>
       ) : (
         <div style={{ textAlign: "center", padding: "12px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>
-              ☀️ ☁️ 🌧 🌈
-            </div>
-          <p
-            style={{
-              fontSize: 15,
-              color: "#444",
-              lineHeight: 1.6,
-            }}
-          >
-            오늘의 감정을 날씨처럼 골라
-            <br />한 줄로 남겨보세요.
+          <div style={{ fontSize: 48, marginBottom: 8 }}>☀️ ☁️ 🌧 🌈</div>
+          <p style={{ fontSize: 15, color: "#444", lineHeight: 1.6 }}>
+            {isToday ? (
+              <>
+                오늘의 감정을 날씨처럼 골라
+                <br />한 줄로 남겨보세요.
+              </>
+            ) : (
+              <>
+                이 날의 감정을 날씨처럼 골라
+                <br />한 줄로 남겨보세요.
+              </>
+            )}
           </p>
         </div>
       )}
@@ -370,7 +399,7 @@ function IntroPanel({
           boxShadow: "0 12px 28px rgba(0,0,0,0.22)",
         }}
       >
-        {hasEntry ? "다시 기록하기" : "오늘 감정 기록하기"}
+        {startLabel}
       </button>
     </section>
   );
