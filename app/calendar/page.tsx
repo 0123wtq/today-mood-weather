@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import CalendarView from "./CalendarView";
 
 export const metadata = {
@@ -5,5 +6,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <CalendarView />;
+  return (
+    <Suspense fallback={null}>
+      <CalendarView />
+    </Suspense>
+  );
 }

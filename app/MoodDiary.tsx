@@ -252,7 +252,11 @@ export default function MoodDiary() {
 
         {(phase === "intro" || status === "saved") && (
           <Link
-            href="/calendar"
+            href={
+              status === "saved"
+                ? `/calendar?selected=${targetDate}`
+                : "/calendar"
+            }
             style={{
               display: "block",
               textAlign: "center",

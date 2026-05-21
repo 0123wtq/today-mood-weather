@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { MOODS, MOOD_MAP, type MoodKey } from "../lib/moods";
 import {
   formatKoreanDate,
+  isValidDateKey,
   loadEntries,
   todayKey,
   type EntriesMap,
@@ -19,12 +21,23 @@ function monthKey(y: number, m: number, d: number) {
 }
 
 export default function CalendarView() {
+  const searchParams = useSearchParams();
+  const selectedParam = searchParams.get("selected");
   const today = useMemo(() => new Date(), []);
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  const initialDate = isValidDateKey(selectedParam)
+    ? new Date(
+        Number(selectedParam.slice(0, 4)),
+        Number(selectedParam.slice(5, 7)) - 1,
+        Number(selectedParam.slice(8, 10)),
+      )
+    : today;
+  const [year, setYear] = useState(initialDate.getFullYear());
+  const [month, setMonth] = useState(initialDate.getMonth());
   const [entries, setEntries] = useState<EntriesMap>({});
   const [hydrated, setHydrated] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(
+    isValidDateKey(selectedParam) ? selectedParam : null,
+  );
 
   useEffect(() => {
     setHydrated(true);
@@ -238,17 +251,17 @@ export default function CalendarView() {
                     justifyContent: "center",
                     color: mood ? "#fff" : "#666",
                     border: isSelected
-                      ? "2px solid #1a1a1a"
+                      ? "2.5px solid #1a1a1a"
                       : isToday
-                        ? "2px solid #1a1a1a"
+                        ? "1.5px dashed #B0BEC5"
                         : "2px solid transparent",
-                    outline: isSelected
-                      ? "2px solid rgba(26,26,26,0.25)"
+                    boxShadow: isSelected
+                      ? "0 6px 16px rgba(0,0,0,0.18)"
                       : "none",
-                    outlineOffset: 1,
                     padding: 0,
-                    transition: "transform 0.15s ease",
-                    transform: isSelected ? "scale(1.04)" : "none",
+                    cursor: "pointer",
+                    transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                    transform: isSelected ? "scale(1.06)" : "none",
                   }}
                 >
                   <span
@@ -337,6 +350,24 @@ export default function CalendarView() {
                     한 줄 기록은 비어있어요.
                   </p>
                 )}
+                <Link
+                  href={`/?date=${selectedDate}`}
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    marginTop: 16,
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,0.95)",
+                    color: "#1a1a1a",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+                  }}
+                >
+                  다시 기록하기
+                </Link>
               </>
             ) : (
               <>
