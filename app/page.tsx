@@ -1,5 +1,5 @@
-import TodayMoodWeather from "./TodayMoodWeather";
+import MoodDiary from "./MoodDiary";
 
 export default function Page() {
-  return <TodayMoodWeather />;
+  return <MoodDiary />;
 }
