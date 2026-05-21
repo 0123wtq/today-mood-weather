@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MOODS, MOOD_MAP, type MoodKey } from "../lib/moods";
-import { loadEntries, todayKey, type EntriesMap } from "../lib/storage";
+import {
+  formatKoreanDate,
+  loadEntries,
+  todayKey,
+  type EntriesMap,
+} from "../lib/storage";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -19,6 +24,7 @@ export default function CalendarView() {
   const [month, setMonth] = useState(today.getMonth());
   const [entries, setEntries] = useState<EntriesMap>({});
   const [hydrated, setHydrated] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -60,9 +66,13 @@ export default function CalendarView() {
     const next = new Date(year, month + delta, 1);
     setYear(next.getFullYear());
     setMonth(next.getMonth());
+    setSelectedDate(null);
   }
 
   const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
+  const totalEntries = Object.keys(entries).length;
+  const selectedEntry = selectedDate ? entries[selectedDate] ?? null : null;
+  const selectedMood = selectedEntry ? MOOD_MAP[selectedEntry.mood] : null;
 
   return (
     <main
@@ -76,22 +86,41 @@ export default function CalendarView() {
           "calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(env(safe-area-inset-bottom, 0px) + 32px)",
       }}
     >
-      <div style={{ width: "100%", maxWidth: 480 }}>
-        <header style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 480,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
           <Link
             href="/"
             style={{
-              fontSize: 13,
-              color: "#666",
+              fontSize: 14,
+              color: "#1a1a1a",
               textDecoration: "none",
+              padding: "8px 12px",
+              borderRadius: 10,
+              background: "#fff",
+              fontWeight: 600,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
             }}
           >
             ← 오늘 기록하기
           </Link>
           <h1
             style={{
-              marginTop: 8,
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: 700,
               color: "#1a1a1a",
             }}
@@ -187,13 +216,17 @@ export default function CalendarView() {
               const entry = entries[cell.key];
               const mood = entry ? MOOD_MAP[entry.mood] : null;
               const isToday = cell.key === todayStr;
+              const isSelected = cell.key === selectedDate;
               return (
-                <div
+                <button
+                  type="button"
                   key={cell.key}
-                  title={
+                  onClick={() => setSelectedDate(cell.key)}
+                  aria-pressed={isSelected}
+                  aria-label={
                     entry
-                      ? `${mood?.label}${entry.note ? ` · ${entry.note}` : ""}`
-                      : undefined
+                      ? `${cell.day}일, ${mood?.label}`
+                      : `${cell.day}일, 기록 없음`
                   }
                   style={{
                     aspectRatio: "1",
@@ -204,8 +237,18 @@ export default function CalendarView() {
                     alignItems: "center",
                     justifyContent: "center",
                     color: mood ? "#fff" : "#666",
-                    border: isToday ? "2px solid #1a1a1a" : "2px solid transparent",
-                    position: "relative",
+                    border: isSelected
+                      ? "2px solid #1a1a1a"
+                      : isToday
+                        ? "2px solid #1a1a1a"
+                        : "2px solid transparent",
+                    outline: isSelected
+                      ? "2px solid rgba(26,26,26,0.25)"
+                      : "none",
+                    outlineOffset: 1,
+                    padding: 0,
+                    transition: "transform 0.15s ease",
+                    transform: isSelected ? "scale(1.04)" : "none",
                   }}
                 >
                   <span
@@ -222,15 +265,89 @@ export default function CalendarView() {
                       {mood.emoji}
                     </span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
         </section>
 
+        {selectedDate && (
+          <section
+            aria-label="선택한 날짜 기록"
+            style={{
+              borderRadius: 20,
+              padding: 18,
+              background: selectedMood ? selectedMood.gradient : "#fff",
+              color: selectedMood ? "#fff" : "#1a1a1a",
+              boxShadow: selectedMood
+                ? "0 12px 32px rgba(0,0,0,0.16)"
+                : "0 4px 16px rgba(0,0,0,0.06)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 12,
+                opacity: selectedMood ? 0.9 : 0.6,
+                letterSpacing: 1,
+              }}
+            >
+              {formatKoreanDate(selectedDate)}
+            </p>
+            {selectedEntry && selectedMood ? (
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    marginTop: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 40 }}>{selectedMood.emoji}</span>
+                  <div>
+                    <p style={{ fontSize: 20, fontWeight: 700 }}>
+                      {selectedMood.label}
+                    </p>
+                    <p style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>
+                      {selectedMood.description}
+                    </p>
+                  </div>
+                </div>
+                {selectedEntry.note ? (
+                  <p
+                    style={{
+                      marginTop: 12,
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      opacity: 0.95,
+                    }}
+                  >
+                    "{selectedEntry.note}"
+                  </p>
+                ) : (
+                  <p
+                    style={{
+                      marginTop: 12,
+                      fontSize: 13,
+                      opacity: 0.85,
+                    }}
+                  >
+                    한 줄 기록은 비어있어요.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p style={{ marginTop: 10, fontSize: 14, color: "#666" }}>
+                이 날은 아직 기록이 없어요.
+              </p>
+            )}
+          </section>
+        )}
+
         <section
           style={{
-            marginTop: 18,
             background: "#fff",
             borderRadius: 20,
             padding: 18,
@@ -320,6 +437,26 @@ export default function CalendarView() {
             </>
           )}
         </section>
+
+        {hydrated && totalEntries === 0 && (
+          <Link
+            href="/"
+            style={{
+              display: "block",
+              textAlign: "center",
+              padding: "18px 16px",
+              borderRadius: 16,
+              background: "#1a1a1a",
+              color: "#fff",
+              fontSize: 17,
+              fontWeight: 700,
+              textDecoration: "none",
+              boxShadow: "0 12px 28px rgba(0,0,0,0.22)",
+            }}
+          >
+            오늘 감정 기록하기
+          </Link>
+        )}
       </div>
     </main>
   );
